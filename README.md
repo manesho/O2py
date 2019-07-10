@@ -1,13 +1,13 @@
 # O2py
 An interactive visualization of the 2d O(2) model.
 
-# Setup
+## Setup
 Directly via pip:
 ```console
 $ pip install git+https://github.com/manesho/O2py.git 
 ```
 
-# Usage 
+## Usage 
 For a simple visualization:
 
 ```python
