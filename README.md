@@ -11,7 +11,7 @@ $ pip install git+https://github.com/manesho/O2py.git
 For a simple visualization:
 
 ```python
-$ import O2py
-$ O2py.interactiveo2plot(l=100, beta = 1.1199)
+import O2py
+O2py.interactiveo2plot(l=100, beta = 1.1199)
 ```
 pay attention to the key bindings printed out to play around.
