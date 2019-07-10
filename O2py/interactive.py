@@ -89,8 +89,9 @@ class interactiveo2plot:
         
     """
 
-    def __init__(self, dofs, beta, wn=pw.random_unit_vector(), l = None):
-        if not l is None:
+    def __init__(self, beta=1., l = 40, dofs=None, wn=pw.random_unit_vector()):
+
+        if dofs  is None:
             dofs = pw.random_dofs(l,l)
         print(self.manual)
         self.bgplotcmds = {'alt+o':self.update_cloplot, 
@@ -311,7 +312,7 @@ def get_reference_configuration(dofs, isinc, wolffnormal):
         #get a representative:
         x,y = np.argwhere(isinc==cluster)[0]
         if dofs[x,y,:].dot(wolffnormal) < 0:
-             pw.flip_cluster(refconf, isinc, cluster, wolffnormal)
+            refconf[isinc==cluster] = pw.flip_dofs_1d(refconf[isinc==cluster],wolffnormal)
     return refconf
 
 def cluster_random_cmap(isinc, mode ='eyecancer'):
