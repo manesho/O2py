@@ -2,12 +2,14 @@
 
 
 import numpy as np
-import matplotlib.pyplot as plt
-import o2pytools.wolffcompiled as pw
-import o2pytools.vortices as o2v
-import o2pytools.pylab as o2p
+import random
 from numba import njit
-import numba
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from matplotlib import cm
+import matplotlib.pyplot as plt
+import O2py.wolffcompiled as pw
+import O2py.vortices as o2v
+
 
 @njit
 def get_clo(dofs, isinc, wn):
@@ -15,7 +17,7 @@ def get_clo(dofs, isinc, wn):
     Returns the mean orientation of each cluster with respect to the wolff normal vector.
 
     This function calculates:
-    .. math:: \bar{\omeage}(x) =\frac{1}{|c|} \sum_{y\in c(x)} s_x\cdot w
+    $$ \bar{\omeage}(x) =\frac{1}{|c|} \sum_{y\in c(x)} s_x\cdot w $$
 
     Parameters:
     dofs([sx,sy,2] float array): Contains the current state of the O2 model.
@@ -87,7 +89,9 @@ class interactiveo2plot:
         
     """
 
-    def __init__(self, dofs, beta, wn=pw.random_unit_vector()):
+    def __init__(self, dofs, beta, wn=pw.random_unit_vector(), l = None):
+        if not l is None:
+            dofs = pw.random_dofs(l,l)
         print(self.manual)
         self.bgplotcmds = {'alt+o':self.update_cloplot, 
                            'alt+i':self.plot_isinc,
@@ -122,6 +126,8 @@ class interactiveo2plot:
 
         cid = fig.canvas.mpl_connect('button_press_event', self.onclick)
         cid2 = fig.canvas.mpl_connect('key_press_event', self.onkey)
+        
+        plt.draw()
 
     def plot_orientation(self):
         """Set the background to the angle of each dof with respect to the wolffplane."""
@@ -135,7 +141,7 @@ class interactiveo2plot:
 
     def plot_isinc(self):
         """Set the background to a qualitative cluster visualization"""
-        clcmap = o2p.cluster_random_cmap(self.isinc, mode='largecolored1')
+        clcmap = cluster_random_cmap(self.isinc, mode='largecolored1')
         self.clplot.set_clim(0,np.max(self.isinc))
         self.clplot.set_array(self.isinc)
         self.clplot.set_cmap(clcmap)

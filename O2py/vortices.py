@@ -4,7 +4,6 @@
 from itertools import compress
 from numba import njit
 import numpy as np
-import o2pytools.pylab as pylab
 
 
 def orientedcover_vec(v1,v2, w):
@@ -88,21 +87,21 @@ def get_associated_clusters(coords, dofs, isinc, wn):
     return asc
 
 def free_vn(dofs, isinc, wn):
-    pv = pylab.plaquettevorticity_vec(dofs)
+    pv = plaquettevorticity_vec(dofs)
     vloc = list(zip(*np.where(pv!=0)))
     clsofvorts = [get_associated_clusters(vc, dofs, isinc, wn) for vc in vloc]
     clswithvorts, nvorts = np.unique(np.array(clsofvorts), return_counts=True)
     return np.sum(nvorts%2==1)/2.
     
 def completely_free_vortices(dofs, isinc, wn):
-    pv = pylab.plaquettevorticity_vec(dofs)
+    pv = plaquettevorticity_vec(dofs)
     vloc = list(zip(*np.where(pv!=0)))
     clsofvorts = [get_associated_clusters(vc, dofs, isinc, wn) for vc in vloc]
     clswithvorts, nvorts = np.unique(np.array(clsofvorts), return_counts=True)
     return np.sum([nvorts[clswithvorts==cl1] == 1 and  nvorts[clswithvorts==cl2]== 1 for cl1,cl2 in clsofvorts] )   
  
 def completely_free_vortex_locations(dofs, isinc, wn):
-    pv = pylab.plaquettevorticity_vec(dofs)
+    pv = plaquettevorticity_vec(dofs)
     vloc = list(zip(*np.where(pv!=0)))
     clsofvorts = [get_associated_clusters(vc, dofs, isinc, wn) for vc in vloc]
     clswithvorts, nvorts = np.unique(np.array(clsofvorts), return_counts=True)
