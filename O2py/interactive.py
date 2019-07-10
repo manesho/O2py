@@ -111,6 +111,7 @@ class interactiveo2plot:
         self.show_vortices = False
         self.clustercontour = {}
 
+        plt.ion()
         fig, ax = plt.subplots()
         self.axis = ax
         self.set_title()
@@ -127,7 +128,7 @@ class interactiveo2plot:
         cid = fig.canvas.mpl_connect('button_press_event', self.onclick)
         cid2 = fig.canvas.mpl_connect('key_press_event', self.onkey)
         
-        plt.draw()
+        plt.show()
 
     def plot_orientation(self):
         """Set the background to the angle of each dof with respect to the wolffplane."""
