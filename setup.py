@@ -7,6 +7,14 @@ setup(name='O2py',
       author_email='hornung@itp.unibe.ch',
       #license='MIT',
       packages=['O2py'],
+<<<<<<< HEAD
       install_requires=['numpy', 'scipy', 'matplotlib', 'numba'],
       extras_require={'lic':['licpy', 'tensorflow']},
+=======
+      entry_points="""
+          [console_scripts]
+          o2py=O2py.cli:cli
+      """,
+      install_requires=['numpy', 'scipy', 'matplotlib', 'numba', 'click'],
+>>>>>>> f82753d109ec4d5216ad446e4c74aecbded25bde
       zip_safe=False)
