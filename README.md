@@ -6,6 +6,10 @@ Directly via pip:
 ```console
 $ pip install git+https://github.com/manesho/O2py.git 
 ```
+If you want to enable the line integral convolution visualization:
+```console
+$ pip install git+https://github.com/manesho/O2py.git#egg=O2py[lic]
+```
 
 ## Usage 
 For a simple visualization, run the command line script:
