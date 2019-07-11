@@ -8,8 +8,13 @@ $ pip install git+https://github.com/manesho/O2py.git
 ```
 
 ## Usage 
-For a simple visualization:
+For a simple visualization, run the command line script:
 
+```bash
+o2py interact -l 100 --beta 1.1199
+```
+
+or within an interactive Python session:
 ```python
 import O2py
 O2py.interactiveo2plot(l=100, beta = 1.1199)
