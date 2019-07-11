@@ -7,5 +7,9 @@ setup(name='O2py',
       author_email='hornung@itp.unibe.ch',
       #license='MIT',
       packages=['O2py'],
-      install_requires=['numpy', 'scipy', 'matplotlib', 'numba'],
+      entry_points="""
+          [console_scripts]
+          o2py=O2py.cli:cli
+      """,
+      install_requires=['numpy', 'scipy', 'matplotlib', 'numba', 'click'],
       zip_safe=False)
