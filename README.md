@@ -1,6 +1,8 @@
 # O2py
 An interactive visualization of the 2d O(2) model.
 
+![Alt text](ex.png?raw=true "Example")
+
 ## Setup
 Directly via pip:
 ```console
