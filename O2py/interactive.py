@@ -4,6 +4,10 @@
 import numpy as np
 import random
 from numba import njit
+try:
+    from licpy.lic import runlic
+except:
+    print('line integral convolution not installed')
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib import cm
 import matplotlib.pyplot as plt
@@ -73,6 +77,7 @@ class interactiveo2plot:
         alt+o : show mean cluster orientation as background
         alt+i : show the clusters with qualitative colors
         alt+s : show the spin orientaitons with respect to the wolff plane
+        alt+l : show the spin orientaitons as line integral convolution
 
         v : toggle vortices
         b : toggle boundary  of cluster under cursor
@@ -96,7 +101,8 @@ class interactiveo2plot:
         print(self.manual)
         self.bgplotcmds = {'alt+o':self.update_cloplot, 
                            'alt+i':self.plot_isinc,
-                           'alt+s':self.plot_orientation}
+                           'alt+s':self.plot_orientation,
+                           'alt+l':self.plot_lic}
 
 
         self.background = list(self.bgplotcmds.keys())[0]
@@ -130,6 +136,18 @@ class interactiveo2plot:
         cid2 = fig.canvas.mpl_connect('key_press_event', self.onkey)
         
         plt.show()
+
+    def plot_lic(self):
+        try:
+            licimage = runlic(self.dofs[:,:,0], self.dofs[:,:,1],10)
+        except:
+            print("Line integral convolution depends on licpy, which itself depends on tensorflow: pip install O2py[lic]")
+            self.background='alt+s'
+            return
+
+        self.clplot.set_array(licimage)
+        self.clplot.set_clim(0,1)
+        self.clplot.set_cmap('Blues')
 
     def plot_orientation(self):
         """Set the background to the angle of each dof with respect to the wolffplane."""

@@ -8,4 +8,5 @@ setup(name='O2py',
       #license='MIT',
       packages=['O2py'],
       install_requires=['numpy', 'scipy', 'matplotlib', 'numba'],
+      extras_require={'lic':['licpy', 'tensorflow']},
       zip_safe=False)
