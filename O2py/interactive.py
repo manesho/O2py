@@ -38,10 +38,7 @@ class interactiveo2plot:
         wn([2] float array): the current wolff plane
         isinc([sx,sy] int): the current cluster assignment
 
-        clo ([sx,ys] int): the mean orientation of the assigned cluster for each site
- 
-    """
-
+        clo ([sx,ys] int): the mean orientation of the assigned cluster for each site """ 
     manual ="""
     right click: flips the cluster
     keys:
@@ -82,9 +79,9 @@ class interactiveo2plot:
         self.wn = wn
         self.isinc=pw.assign_clusters(dofs,beta, wn)
 
-
-
         self.clo = self.clo_from_dofs()
+        self.pv = o2v.plaquettevorticity_vec(self.dofs)
+        self.freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
 
         self.show_vortices = False
         #self.show_dof_quiver = False
@@ -170,8 +167,9 @@ class interactiveo2plot:
         self.wn = pw.random_unit_vector()
         self.isinc=pw.assign_clusters(self.dofs,self.beta, self.wn)
         self.clo= self.clo_from_dofs()
-        
-        
+        self.pv = o2v.plaquettevorticity_vec(self.dofs)
+        self.freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
+
     def flip_cluster_at(self,x,y):
         """ Flip the cluster to which the site at (x,y) belongs to and update the mean cluster orientation"""
         self.pvprev = o2v.plaquettevorticity_vec(self.dofs)
@@ -179,6 +177,9 @@ class interactiveo2plot:
         clid = self.isinc[int(round(y)),int(round(x))]
         self.dofs[self.isinc==clid] = pw.flip_dofs_1d(self.dofs[self.isinc==clid],self.wn)
         self.clo[self.isinc==clid] = - self.clo[self.isinc==clid]
+        self.pv = o2v.plaquettevorticity_vec(self.dofs)
+        self.freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
+
 
     def plot_vort_changes(self):
         pv = o2v.plaquettevorticity_vec(self.dofs)
@@ -204,18 +205,16 @@ class interactiveo2plot:
     def update_vortex_plot(self):
         """"""
         if self.show_vortices:
-            pv = o2v.plaquettevorticity_vec(self.dofs)
-            sx,sy= pv.shape[0:2]
+            sx,sy= self.pv.shape[0:2]
             x, y = np.meshgrid(range(sx),range(sy))
-            vlocx =x[np.where(pv==1)]
-            vlocy =y[np.where(pv==1)]
-            avlocx=x[np.where(pv==-1)]
-            avlocy=y[np.where(pv==-1)]
+            vlocx =x[np.where(self.pv==1)]
+            vlocy =y[np.where(self.pv==1)]
+            avlocx=x[np.where(self.pv==-1)]
+            avlocy=y[np.where(self.pv==-1)]
 
-            freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
-            if len(freevs)>0:
-                freex = np.array(freevs)[:,1]
-                freey = np.array(freevs)[:,0]
+            if len(self.freevs)>0:
+                freex = np.array(self.freevs)[:,1]
+                freey = np.array(self.freevs)[:,0]
                 self.pfreevs[0].set_data(freex-0.5, freey-0.5)
             else:
                 self.pfreevs[0].set_data([],[])
@@ -237,13 +236,14 @@ class interactiveo2plot:
         refconf = get_reference_configuration(self.dofs, self.isinc, self.wn)
         self.dofs = refconf
         self.clo= self.clo_from_dofs()
+        self.pv = o2v.plaquettevorticity_vec(self.dofs)
 
        
     def set_title(self):
         """updates the plot title to show the number of currently present vortices"""
-        nvorts = np.sum( o2v.plaquettevorticity_vec(self.dofs)!=0)/np.prod(self.isinc.shape)
-        nfreevorts = len(o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn))/np.prod(self.isinc.shape)
-        self.axis.set_title('$\\beta = {:.2f}, \\rho_v = {:.2f}, \\rho_v^{{(f)}} = {:.2f}$'.format(self.beta, nvorts, nfreevorts))
+        nvorts = np.sum( self.pv!=0)/np.prod(self.isinc.shape)
+        nfreevorts = len(self.freevs)/np.prod(self.isinc.shape)
+        self.axis.set_title('$\\beta = {:.2f}, \\rho_v = {:.4f}, \\rho_v^{{(f)}} = {:.4f}$'.format(self.beta,nvorts,nfreevorts))
 
     def remove_all_contours(self):
         for contplot in self.clustercontour.values():
