@@ -8,42 +8,13 @@ try:
     from licpy.lic import runlic
 except:
     print('line integral convolution not installed')
+from scipy.interpolate import RectBivariateSpline
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib import cm
 import matplotlib.pyplot as plt
 import O2py.wolffcompiled as pw
 import O2py.vortices as o2v
 
-
-@njit
-def get_clo(dofs, isinc, wn):
-    """
-    Returns the mean orientation of each cluster with respect to the wolff normal vector.
-
-    This function calculates:
-    $$ \bar{\omeage}(x) =\frac{1}{|c|} \sum_{y\in c(x)} s_x\cdot w $$
-
-    Parameters:
-    dofs([sx,sy,2] float array): Contains the current state of the O2 model.
-    isinc([sx,sy] int array): isinc[x,y] contains the number of the cluster the site at x,y belongst to.
-    wn([2] float array): the vector normal to the wolff plane
-
-    Returns:
-    [sx,sy] float array: 
-
-    """
-    clomegas = np.zeros((round(int(np.max(isinc)+1)), 2))
-    nsitesinc = np.zeros(round(int(np.max(isinc)+1)))
-    clos = np.zeros(isinc.shape, dtype=np.float64)
-    isincint = isinc.astype(np.int32)
-    for x in range(isincint.shape[0]):
-        for y in range(isincint.shape[1]):
-            clomegas[isincint[x,y]]+=dofs[x,y]
-            nsitesinc[isincint[x,y]]+=1
-    for x in range(isincint.shape[0]):
-        for y in range(isincint.shape[1]):
-            clos[x,y] = (wn[0]*clomegas[isincint[x,y],0]+wn[1]*clomegas[isincint[x,y],1])/nsitesinc[isincint[x,y]]
-    return clos
 
 
 class interactiveo2plot:
@@ -116,6 +87,7 @@ class interactiveo2plot:
         self.clo = self.clo_from_dofs()
 
         self.show_vortices = False
+        #self.show_dof_quiver = False
         self.clustercontour = {}
 
         plt.ion()
@@ -123,8 +95,13 @@ class interactiveo2plot:
         self.axis = ax
         self.set_title()
         self.clplot = ax.imshow(self.clo, cmap = 'coolwarm')
+
+
+      # self.dofquiver = plt.quiver(self.dofs[:,:,0], self.dofs[:,:,1], alpha = 0, scale_units='xy')
+
         self.clplot.set_clim(-1,1)
         plt.subplots_adjust(right=0.7)
+
         self.pvs = plt.plot([0],[0],'^C5', markersize=5, label='Vortices')
         self.pavs = plt.plot([1],[1],'vC8', markersize=5, label='Anti Vortices')
         self.pfreevs = plt.plot([1],[1],'oC2',markersize=7, fillstyle='none', label = 'Free Vortices')
@@ -137,9 +114,18 @@ class interactiveo2plot:
         
         plt.show()
 
+    
+
     def plot_lic(self):
+
+        dofsi1 = RectBivariateSpline(np.arange(self.dofs.shape[0]), np.arange(self.dofs.shape[1]), self.dofs[:,:,0])
+        dofsi2 = RectBivariateSpline(np.arange(self.dofs.shape[0]), np.arange(self.dofs.shape[1]), self.dofs[:,:,1])
+        xi1 = np.arange(0, self.dofs.shape[0], 0.1)
+        xi2 = np.arange(0, self.dofs.shape[1], 0.1)
+        xxi1, xxi2 = np.meshgrid(xi1,xi2)
+
         try:
-            licimage = runlic(self.dofs[:,:,0], self.dofs[:,:,1],10)
+            licimage = runlic(dofsi1(xi1,xi2),dofsi2(xi1,xi2),50)
         except:
             print("Line integral convolution depends on licpy, which itself depends on tensorflow: pip install O2py[lic]")
             self.background='alt+s'
@@ -175,6 +161,7 @@ class interactiveo2plot:
     def update_background(self ):
         """Updates whichever background is activated."""
         self.bgplotcmds[self.background]()
+        #self.update_dof_quiver()
 
 
     def mc_update(self, ntimes =1):
@@ -206,6 +193,13 @@ class interactiveo2plot:
         self.pfreevs[0].set_data([],[])
         self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
         self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
+
+   # def update_dof_quiver(self):
+   #     if self.show_dof_quiver == True:
+   #         self.dofquiver.set_UVC(self.dofs[:,:,0], self.dofs[:,:,1])
+   #         self.dofquiver.set_alpha(1)
+   #     else:
+   #         self.dofquiver.set_alpha(0)
     
     def update_vortex_plot(self):
         """"""
@@ -249,7 +243,7 @@ class interactiveo2plot:
         """updates the plot title to show the number of currently present vortices"""
         nvorts = np.sum( o2v.plaquettevorticity_vec(self.dofs)!=0)/np.prod(self.isinc.shape)
         nfreevorts = len(o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn))/np.prod(self.isinc.shape)
-        self.axis.set_title('$\\beta = {:.2f}, \\rho_v = {}, \\rho_v^{{(f)}} = {}$'.format(self.beta, nvorts, nfreevorts))
+        self.axis.set_title('$\\beta = {:.2f}, \\rho_v = {:.2f}, \\rho_v^{{(f)}} = {:.2f}$'.format(self.beta, nvorts, nfreevorts))
 
     def remove_all_contours(self):
         for contplot in self.clustercontour.values():
@@ -273,7 +267,11 @@ class interactiveo2plot:
         if event.key in self.bgplotcmds.keys():
             self.background = event.key
             self.update_background()
-        
+
+        if event.key == 'alt+q':
+            self.show_dof_quiver = not self.show_dof_quiver
+            self.update_background()
+
         if event.key =='u':
             self.mc_update()
             self.update_background()
@@ -349,4 +347,35 @@ def cluster_random_cmap(isinc, mode ='eyecancer'):
 
     cmap = ListedColormap([cfuns[mode](clidx) for clidx in range(int(isinc.max())+1)])
     return cmap
+
+
+@njit
+def get_clo(dofs, isinc, wn):
+    """
+    Returns the mean orientation of each cluster with respect to the wolff normal vector.
+
+    This function calculates:
+    $$ \bar{\omeage}(x) =\frac{1}{|c|} \sum_{y\in c(x)} s_x\cdot w $$
+
+    Parameters:
+    dofs([sx,sy,2] float array): Contains the current state of the O2 model.
+    isinc([sx,sy] int array): isinc[x,y] contains the number of the cluster the site at x,y belongst to.
+    wn([2] float array): the vector normal to the wolff plane
+
+    Returns:
+    [sx,sy] float array: 
+
+    """
+    clomegas = np.zeros((round(int(np.max(isinc)+1)), 2))
+    nsitesinc = np.zeros(round(int(np.max(isinc)+1)))
+    clos = np.zeros(isinc.shape, dtype=np.float64)
+    isincint = isinc.astype(np.int32)
+    for x in range(isincint.shape[0]):
+        for y in range(isincint.shape[1]):
+            clomegas[isincint[x,y]]+=dofs[x,y]
+            nsitesinc[isincint[x,y]]+=1
+    for x in range(isincint.shape[0]):
+        for y in range(isincint.shape[1]):
+            clos[x,y] = (wn[0]*clomegas[isincint[x,y],0]+wn[1]*clomegas[isincint[x,y],1])/nsitesinc[isincint[x,y]]
+    return clos
 
