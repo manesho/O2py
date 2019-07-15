@@ -200,7 +200,7 @@ class interactiveo2plot:
         self.freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
 
 
-   def clo_from_dofs(self):
+    def clo_from_dofs(self):
         """ returns the mean cluster orientaion"""
         return get_clo(self.dofs, self.isinc,self.wn)
 
@@ -369,7 +369,8 @@ class BoundaryLayer:
             y2plot = []
             os2plot= []
 
-            for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,[0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
+            for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,
+                                                               [0.4,-0.4,0.,0.],[0.,0.,0.4,-0.4]):
                 x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
                 y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
                 os2plot= np.append(os2plot, orientations[bdrybool])
@@ -385,11 +386,11 @@ class BoundaryLayer:
             del self.boundaryplots_p[clid]
 
     def remove_all(self):
-        for  clid in self.boundaryplots_m.keys():
+        for clid in self.boundaryplots_m.keys():
             self.boundaryplots_m[clid][0].remove()
             self.boundaryplots_p[clid][0].remove()
-            del self.boundaryplots_m[clid]
-            del self.boundaryplots_p[clid]
+        self.boundaryplots_m={}
+        self.boundaryplots_p={}
 
 
 ###########################################################################################
