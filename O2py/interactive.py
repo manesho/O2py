@@ -21,45 +21,62 @@ class interactiveo2plot:
     """A class for the interactive visualization of the 2d O(2) model.
 
     Attributes:
-        background (char): a key denoting which background is activated:
-              'o' : the mean cluster orientation with respect to the wolffplane  
-              'i' : the local degrees of freedom (with repsect to the wolff plane)
-              's' : large clusters have a random color, small cluster a random greyscale value.
-        show_vortices(bool) : if true, vortices and anti-vortices are plotted
-        clustercontour(dict) : a dict of clid:cluster boundary contour plot handle, for all cluster boundary contours that are shown
+        bgplotcmds: a dict of keybinding:function to update the background
+        background: the keybinding of the active background
         axis: a handle to the axis of the plot
         clplot: a handle to the background plot
-        pvs: a handle to the vortex plot
-        pavs: a handle to the antivortex plot
-        pfreevs: a handle to the free vortex plot
+        layers: dict of all layers (active and inactive) with key bindings as keys
+    
+
     
         dofs([sx,sy,2] float array): the spin state of the model.
         beta(float): the inverse temperature
         wn([2] float array): the current wolff plane
         isinc([sx,sy] int): the current cluster assignment
 
-        clo ([sx,ys] int): the mean orientation of the assigned cluster for each site """ 
+        clo ([sx,ys] int): the mean orientation of the assigned cluster for each site
+        pv ([sx,sy] int): the local vorticity
+        freevs: vortices, for which both associated clusters are only associated
+                  to one vortex currently visible
+    """
+
     manual ="""
     right click: flips the cluster
     keys:
+
+        Backgrounds
+        -----------
         alt+o : show mean cluster orientation as background
         alt+i : show the clusters with qualitative colors
         alt+s : show the spin orientaitons with respect to the wolff plane
         alt+l : show the spin orientaitons as line integral convolution
 
-        v : toggle vortices
-        b : toggle boundary  of cluster under cursor
-        B : remove all boundaries from plot
+        Layers
+        ------
+        alt+v : toggle vortices
 
+        alt+b : toggle boundary orientaion of cluster under cursor
+        alt+B : remove all boundary orientations from plot
+
+        alt+c : toggle boundary contour of cluster under cursor
+        alt+C : remove all boundary contours from plot
+
+        alt+q : toggle a quiver plot of the spins
+
+        alt+d : toggle vorticity changes du to last cluster flip (a bit experimental)
+
+
+
+        Model Controls
+        --------------
         u : perform a multicluster update
         r : perform 20 multicluster updates
         m : perform L^2 * 100 metropolis updates
-
-        c : show the vorticity change induced by the last cluster flip (by right click)
+        R : flip everything to the reference configuration
 
         up: increase the inverse temperature by 0.1
         down: decrease the inverse temperature by 0.1
-        
+
     """
 
     def __init__(self, beta=1., l = 40, dofs=None, wn=pw.random_unit_vector()):
@@ -216,6 +233,13 @@ class interactiveo2plot:
         if event.key in self.layers.keys():
             self.layers[event.key].toggle(event)
 
+        if event.key == 'alt+B':
+            self.layers['alt+b'].remove_all()
+
+        if event.key == 'alt+C':
+            self.layers['alt+c'].remove_all()
+
+
         if event.key =='u':
             self.mc_update()
             self.update_background()
@@ -227,13 +251,13 @@ class interactiveo2plot:
             self.update_background()
             self.update_layers()
             self.set_title()
+
         if event.key =='R':
             self.flip_to_refconv()
             self.update_background()
             self.update_layers()
             self.set_title()
-        if event.key == 'c':
-            self.plot_vort_changes()
+
         if event.key=='up':
             self.beta +=0.1
             self.set_title()
@@ -244,12 +268,6 @@ class interactiveo2plot:
             pw.metropolis_update(self.dofs, self.beta, nsteps = np.prod(self.isinc.shape)*100)
             self.update_background()
             self.update_layers()
-
-        if event.key == 'alt+B':
-            self.layers['alt+b'].remove_all()
-
-        if event.key == 'alt+C':
-            self.layers['alt+c'].remove_all()
 
 
 
