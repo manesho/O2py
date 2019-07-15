@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import O2py.wolffcompiled as pw
 import O2py.vortices as o2v
 
-
+MARKERSIZE = 5
 
 class interactiveo2plot:
     """A class for the interactive visualization of the 2d O(2) model.
@@ -397,8 +397,8 @@ class VortexChangeLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active =False
-        self.pvs = self.o2plot.axis.plot([0],[0],'^C4', markersize=5)
-        self.pavs = self.o2plot.axis.plot([1],[1],'vC6', markersize=5 )
+        self.pvs = self.o2plot.axis.plot([0],[0],'^C4', markersize=MARKERSIZE)
+        self.pavs = self.o2plot.axis.plot([1],[1],'vC6', markersize=MARKERSIZE )
 
     def update_data(self):
         sx,sy= self.o2plot.pv.shape[0:2]
@@ -434,9 +434,9 @@ class VortexLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active =False
-        self.pvs = self.o2plot.axis.plot([0],[0],'^C5', markersize=5, label='Vortices')
-        self.pavs = self.o2plot.axis.plot([1],[1],'vC8', markersize=5, label='Anti Vortices')
-        self.pfreevs = self.o2plot.axis.plot([1],[1],'oC2',markersize=7, fillstyle='none', label = 'Free Vortices')
+        self.pvs = self.o2plot.axis.plot([0],[0],'^C5', markersize=MARKERSIZE, label='Vortices')
+        self.pavs=self.o2plot.axis.plot([1],[1],'vC8', markersize=MARKERSIZE, label='Anti Vortices')
+        self.pfreevs = self.o2plot.axis.plot([1],[1],'oC2',markersize=MARKERSIZE , fillstyle='none', label = 'Free Vortices')
         plt.legend(bbox_to_anchor=(1.04,1), loc="upper left")
 
     def hide(self):
