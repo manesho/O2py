@@ -72,8 +72,9 @@ class interactiveo2plot:
                            'alt+s':self.plot_orientation,
                            'alt+l':self.plot_lic}
 
-
         self.background = list(self.bgplotcmds.keys())[0]
+
+
         self.dofs=dofs
         self.beta=beta
         self.wn = wn
@@ -83,35 +84,33 @@ class interactiveo2plot:
         self.pv = o2v.plaquettevorticity_vec(self.dofs)
         self.freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
 
-        self.show_vortices = False
         #self.show_dof_quiver = False
         self.clustercontour = {}
 
         plt.ion()
         fig, ax = plt.subplots()
         self.axis = ax
+
+
         self.set_title()
         self.clplot = ax.imshow(self.clo, cmap = 'coolwarm')
 
 
-      # self.dofquiver = plt.quiver(self.dofs[:,:,0], self.dofs[:,:,1], alpha = 0, scale_units='xy')
+        self.layers = {'alt+v':VortexLayer(self),
+                       'alt+q':QuiverLayer(self),
+                       'alt+b':BoundaryLayer(self),
+                       'alt+c':VortexChangeLayer(self)}
+
 
         self.clplot.set_clim(-1,1)
         plt.subplots_adjust(right=0.7)
 
-        self.pvs = plt.plot([0],[0],'^C5', markersize=5, label='Vortices')
-        self.pavs = plt.plot([1],[1],'vC8', markersize=5, label='Anti Vortices')
-        self.pfreevs = plt.plot([1],[1],'oC2',markersize=7, fillstyle='none', label = 'Free Vortices')
-        plt.legend(bbox_to_anchor=(1.04,1), loc="upper left")
 
-        self.update_vortex_plot()
 
         cid = fig.canvas.mpl_connect('button_press_event', self.onclick)
         cid2 = fig.canvas.mpl_connect('key_press_event', self.onkey)
-        
         plt.show()
 
-    
 
     def plot_lic(self):
 
@@ -160,6 +159,9 @@ class interactiveo2plot:
         self.bgplotcmds[self.background]()
         #self.update_dof_quiver()
 
+    def update_layers(self):
+        for layer in self.layers.values():
+            layer.update_plot()
 
     def mc_update(self, ntimes =1):
         """performs ntimes multicluster updates and updates the mean cluster orientation"""
@@ -195,42 +197,9 @@ class interactiveo2plot:
         self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
         self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
 
-   # def update_dof_quiver(self):
-   #     if self.show_dof_quiver == True:
-   #         self.dofquiver.set_UVC(self.dofs[:,:,0], self.dofs[:,:,1])
-   #         self.dofquiver.set_alpha(1)
-   #     else:
-   #         self.dofquiver.set_alpha(0)
-    
-    def update_vortex_plot(self):
-        """"""
-        if self.show_vortices:
-            sx,sy= self.pv.shape[0:2]
-            x, y = np.meshgrid(range(sx),range(sy))
-            vlocx =x[np.where(self.pv==1)]
-            vlocy =y[np.where(self.pv==1)]
-            avlocx=x[np.where(self.pv==-1)]
-            avlocy=y[np.where(self.pv==-1)]
-
-            if len(self.freevs)>0:
-                freex = np.array(self.freevs)[:,1]
-                freey = np.array(self.freevs)[:,0]
-                self.pfreevs[0].set_data(freex-0.5, freey-0.5)
-            else:
-                self.pfreevs[0].set_data([],[])
-
-            self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
-            self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
-            
-        else:
-            self.pvs[0].set_data([],[])
-            self.pavs[0].set_data([],[])
-            self.pfreevs[0].set_data([],[])    
-
     def clo_from_dofs(self):
         """ returns the mean cluster orientaion"""
         return get_clo(self.dofs, self.isinc,self.wn)
-        
 
     def flip_to_refconv(self):
         refconf = get_reference_configuration(self.dofs, self.isinc, self.wn)
@@ -260,7 +229,7 @@ class interactiveo2plot:
             y = int(round(event.ydata))
             self.flip_cluster_at(x,y)
             self.update_background()
-            self.update_vortex_plot()
+            self.update_layers()
             self.set_title()
             
     def onkey(self, event):
@@ -268,28 +237,24 @@ class interactiveo2plot:
             self.background = event.key
             self.update_background()
 
-        if event.key == 'alt+q':
-            self.show_dof_quiver = not self.show_dof_quiver
-            self.update_background()
+        if event.key in self.layers.keys():
+            self.layers[event.key].toggle(event)
 
         if event.key =='u':
             self.mc_update()
             self.update_background()
-            self.update_vortex_plot()
+            self.update_layers()
             self.set_title()
+
         if event.key =='r':
             self.mc_update(ntimes = 20)
             self.update_background()
-            self.update_vortex_plot()
+            self.update_layers()
             self.set_title()
         if event.key =='R':
             self.flip_to_refconv()
-            self.update_cloplot()
-            self.update_vortex_plot()
-            self.set_title()
-        if event.key =='v':
-            self.show_vortices = not self.show_vortices
-            self.update_vortex_plot()
+            self.update_background()
+            self.update_layers()
             self.set_title()
         if event.key == 'c':
             self.plot_vort_changes()
@@ -302,7 +267,10 @@ class interactiveo2plot:
         if event.key == 'm':
             pw.metropolis_update(self.dofs, self.beta, nsteps = np.prod(self.isinc.shape)*100)
             self.update_background()
-            self.update_vortex_plot()
+            self.update_layers()
+
+        if event.key == 'alt+B':
+            self.layers['alt+b'].remove_all()
 
         if event.key == 'B':
             self.remove_all_contours()
@@ -318,6 +286,179 @@ class interactiveo2plot:
                     coll.remove()
                 del self.clustercontour[clid]
 
+
+
+
+
+###########################################################################################
+class QuiverLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active = False
+        self.handle = self.o2plot.axis.quiver(self.o2plot.dofs[:,:,0], self.o2plot.dofs[:,:,1], alpha = 0, scale_units='xy')
+    def hide(self):
+        self.handle.set_alpha(0)
+
+    def update_data(self):
+        self.handle.set_alpha(1.)
+        self.handle.set_UVC(self.o2plot.dofs[:,:,0], self.o2plot.dofs[:,:,1])
+
+    def update_plot(self):
+        if self.active == True:
+            self.update_data()
+
+    def toggle(self, event):
+        if self.active == False:
+            self.active =True
+            self.update_plot()
+        else:
+            self.active = False
+            self.hide()
+
+
+
+###########################################################################################
+class BoundaryLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.boundaryplots_p={}
+        self.boundaryplots_m={}
+
+    @staticmethod
+    def shiftinalldirs(array):
+        return [np.roll(array, -1 ,axis = 0),
+                np.roll(array, 1, axis =0),
+                np.roll(array, -1 ,axis = 1),
+                np.roll(array, 1, axis =1)]
+
+    @staticmethod
+    def bdry_int_sig(v1,v2,wn):
+        return np.sign(np.linalg.det([v1,wn])) if v1.dot(wn) < v2.dot(wn) else np.sign(np.linalg.det([v2,wn]))
+
+    def update_plot(self):
+        return
+
+    def toggle(self, event):
+
+        bdry_int_sig_vec = np.vectorize(self.bdry_int_sig, signature='(2),(2),(2)->()')
+
+        x = int(round(event.xdata))
+        y = int(round(event.ydata))
+        clid = self.o2plot.isinc[y,x]
+        if clid not in self.boundaryplots_p.keys():
+            refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
+            allorientations = [bdry_int_sig_vec(refconf, refconfshifted,self.o2plot.wn)
+                               for refconfshifted in self.shiftinalldirs(refconf)]
+            clbdrybools = [(self.o2plot.isinc ==clid) & (shiftedisinc != clid)
+                           for shiftedisinc in self.shiftinalldirs(self.o2plot.isinc) ]
+            x2plot = []
+            y2plot = []
+            os2plot= []
+
+            for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,[0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
+                x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
+                y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
+                os2plot= np.append(os2plot, orientations[bdrybool])
+
+            #coordinates have to be exchanged due to the funny coordinate system of imshow
+            self.boundaryplots_p[clid] = self.o2plot.axis.plot(y2plot[os2plot==1], x2plot[os2plot==1], 'C0+' )
+            self.boundaryplots_m[clid] = self.o2plot.axis.plot(y2plot[os2plot==-1],x2plot[os2plot==-1], 'C1_' )
+
+        else:
+            self.boundaryplots_m[clid][0].remove()
+            self.boundaryplots_p[clid][0].remove()
+            del self.boundaryplots_m[clid]
+            del self.boundaryplots_p[clid]
+
+    def remove_all(self):
+        for  clid in self.boundaryplots_m.keys():
+            self.boundaryplots_m[clid][0].remove()
+            self.boundaryplots_p[clid][0].remove()
+            del self.boundaryplots_m[clid]
+            del self.boundaryplots_p[clid]
+
+
+###########################################################################################
+class VortexChangeLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active =False
+        self.pvs = self.o2plot.axis.plot([0],[0],'^C4', markersize=5)
+        self.pavs = self.o2plot.axis.plot([1],[1],'vC6', markersize=5 )
+
+    def update_data(self):
+        sx,sy= self.o2plot.pv.shape[0:2]
+        x, y = np.meshgrid(range(sx),range(sy))
+        vlocx =x[np.where((self.o2plot.pv-self.o2plot.pvprev) ==1)]
+        vlocy =y[np.where((self.o2plot.pv-self.o2plot.pvprev) ==1)]
+        avlocx=x[np.where((self.o2plot.pv-self.o2plot.pvprev) ==-1)]
+        avlocy=y[np.where((self.o2plot.pv-self.o2plot.pvprev) ==-1)]
+
+        self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
+        self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
+
+
+    def update_plot(self):
+        if self.active ==True:
+            self.update_data()
+
+    def hide(self):
+        self.pvs[0].set_data([],[])
+        self.pavs[0].set_data([],[])
+
+    def toggle(self, event=None):
+        if self.active == False:
+            self.active =True
+            self.update_plot()
+        else:
+            self.active = False
+            self.hide()
+
+
+###########################################################################################
+class VortexLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active =False
+        self.pvs = self.o2plot.axis.plot([0],[0],'^C5', markersize=5, label='Vortices')
+        self.pavs = self.o2plot.axis.plot([1],[1],'vC8', markersize=5, label='Anti Vortices')
+        self.pfreevs = self.o2plot.axis.plot([1],[1],'oC2',markersize=7, fillstyle='none', label = 'Free Vortices')
+        plt.legend(bbox_to_anchor=(1.04,1), loc="upper left")
+
+    def hide(self):
+        self.pvs[0].set_data([],[])
+        self.pavs[0].set_data([],[])
+        self.pfreevs[0].set_data([],[])
+
+    def update_data(self):
+        sx,sy= self.o2plot.pv.shape[0:2]
+        x, y = np.meshgrid(range(sx),range(sy))
+        vlocx =x[np.where(self.o2plot.pv==1)]
+        vlocy =y[np.where(self.o2plot.pv==1)]
+        avlocx=x[np.where(self.o2plot.pv==-1)]
+        avlocy=y[np.where(self.o2plot.pv==-1)]
+
+        self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
+        self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
+
+        if len(self.o2plot.freevs)>0:
+            freex = np.array(self.o2plot.freevs)[:,1]
+            freey = np.array(self.o2plot.freevs)[:,0]
+            self.pfreevs[0].set_data(freex-0.5, freey-0.5)
+        else:
+            self.pfreevs[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active ==True:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == False:
+            self.active =True
+            self.update_plot()
+        else:
+            self.active = False
+            self.hide()
 
 def get_reference_configuration(dofs, isinc, wolffnormal):
     """Flip everything to the reference configuration"""
@@ -378,4 +519,6 @@ def get_clo(dofs, isinc, wn):
         for y in range(isincint.shape[1]):
             clos[x,y] = (wn[0]*clomegas[isincint[x,y],0]+wn[1]*clomegas[isincint[x,y],1])/nsitesinc[isincint[x,y]]
     return clos
+
+
 
