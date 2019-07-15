@@ -288,31 +288,33 @@ def assign_clusters(dofs, beta,wn):
 @jit(nopython=True)
 def sc_update(dofs, beta, ntimes =1):
     """Performs a Wolff single cluster update inplace."""
-    wn = random_unit_vector()
-    ph, pv = p_add_bond(dofs, wn,beta)
-    bondsh, bondsv = set_bonds(ph,pv)
-    sx,sy = bondsh.shape
-    x0,y0 = np.random.randint(0, dofs.shape[0],2)
-    start =(x0,y0)
-    queue=[]
-    queue.append(start)
+    clsizes = np.zeros(ntimes)
+    for i in range(ntimes):
+        wn = random_unit_vector()
+        ph, pv = p_add_bond(dofs, wn,beta)
+        bondsh, bondsv = set_bonds(ph,pv)
+        sx,sy = bondsh.shape
+        x0,y0 = np.random.randint(0, dofs.shape[0],2)
+        start =(x0,y0)
+        queue=[]
+        queue.append(start)
 
-    isinc=-1*np.ones(bondsh.shape)
-    clsize=0
+        isinc=-1*np.ones(bondsh.shape)
+        clsize=0
 
-    while queue:
-        cx,cy = queue.pop()
-        dofs[cx,cy,:] = flip_dof_0d(dofs[cx,cy,:], wn)
-        clsize+=1
-        nbbonds = [bondsh[cx,cy], bondsh[(cx-1)%sx,cy], bondsv[cx,cy], bondsv[cx,(cy-1)%sy] ]
-        nbcoords = [((cx+1)%sx,cy),((cx-1)%sx, cy), (cx,(cy+1)%sy), (cx, (cy-1)%sy)]
-        for bond,coord in zip(nbbonds, nbcoords):
-            if bond and isinc[coord]==-1:
-                isinc[coord] = 1 
-                queue.append(coord)
+        while queue:
+            cx,cy = queue.pop()
+            dofs[cx,cy,:] = flip_dof_0d(dofs[cx,cy,:], wn)
+            clsize+=1
+            nbbonds = [bondsh[cx,cy], bondsh[(cx-1)%sx,cy], bondsv[cx,cy], bondsv[cx,(cy-1)%sy] ]
+            nbcoords = [((cx+1)%sx,cy),((cx-1)%sx, cy), (cx,(cy+1)%sy), (cx, (cy-1)%sy)]
+            for bond,coord in zip(nbbonds, nbcoords):
+                if bond and isinc[coord]==-1:
+                    isinc[coord] = 1 
+                    queue.append(coord)
+        clsizes[i] = clsize
 
-
-    return clsize 
+    return np.mean(clsizes) 
 
 @jit(nopython=True)
 def metropolis_update(dofs, beta, nsteps=1):
