@@ -85,7 +85,6 @@ class interactiveo2plot:
         self.freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
 
         #self.show_dof_quiver = False
-        self.clustercontour = {}
 
         plt.ion()
         fig, ax = plt.subplots()
@@ -99,7 +98,8 @@ class interactiveo2plot:
         self.layers = {'alt+v':VortexLayer(self),
                        'alt+q':QuiverLayer(self),
                        'alt+b':BoundaryLayer(self),
-                       'alt+c':VortexChangeLayer(self)}
+                       'alt+c':BoundaryContourLayer(self),
+                       'alt+d':VortexChangeLayer(self)}
 
 
         self.clplot.set_clim(-1,1)
@@ -183,21 +183,7 @@ class interactiveo2plot:
         self.freevs=o2v.completely_free_vortex_locations(self.dofs,self.isinc,self.wn)
 
 
-    def plot_vort_changes(self):
-        pv = o2v.plaquettevorticity_vec(self.dofs)
-        pvd = pv - self.pvprev
-        sx,sy= pv.shape[0:2]
-        x, y = np.meshgrid(range(sx),range(sy))
-        vlocx =x[np.where(pvd==1)]
-        vlocy =y[np.where(pvd==1)]
-        avlocx=x[np.where(pvd==-1)]
-        avlocy=y[np.where(pvd==-1)]
-
-        self.pfreevs[0].set_data([],[])
-        self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
-        self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
-
-    def clo_from_dofs(self):
+   def clo_from_dofs(self):
         """ returns the mean cluster orientaion"""
         return get_clo(self.dofs, self.isinc,self.wn)
 
@@ -207,21 +193,11 @@ class interactiveo2plot:
         self.clo= self.clo_from_dofs()
         self.pv = o2v.plaquettevorticity_vec(self.dofs)
 
-       
     def set_title(self):
         """updates the plot title to show the number of currently present vortices"""
         nvorts = np.sum( self.pv!=0)/np.prod(self.isinc.shape)
         nfreevorts = len(self.freevs)/np.prod(self.isinc.shape)
         self.axis.set_title('$\\beta = {:.2f}, \\rho_v = {:.4f}, \\rho_v^{{(f)}} = {:.4f}$'.format(self.beta,nvorts,nfreevorts))
-
-    def remove_all_contours(self):
-        for contplot in self.clustercontour.values():
-            for coll in contplot.collections:
-                try:
-                    coll.remove()
-                except:
-                    pass
-        self.clustercontour = {}
 
     def onclick(self, event):
         if event.button ==3:
@@ -272,19 +248,8 @@ class interactiveo2plot:
         if event.key == 'alt+B':
             self.layers['alt+b'].remove_all()
 
-        if event.key == 'B':
-            self.remove_all_contours()
-
-        if event.key == 'b':
-            x = int(round(event.xdata))
-            y = int(round(event.ydata))
-            clid = self.isinc[y,x]
-            if clid not in self.clustercontour.keys():
-                self.clustercontour[clid]=plt.contour(self.isinc==clid, [1], colors =['yellow'], linewidths=1)
-            else:
-                for coll in self.clustercontour[clid].collections:
-                    coll.remove()
-                del self.clustercontour[clid]
+        if event.key == 'alt+C':
+            self.layers['alt+c'].remove_all()
 
 
 
@@ -314,6 +279,37 @@ class QuiverLayer:
         else:
             self.active = False
             self.hide()
+
+###########################################################################################
+class BoundaryContourLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.clustercontour = {}
+
+    def update_plot(self):
+        return
+
+    def remove_all(self):
+        for contplot in self.clustercontour.values():
+            for coll in contplot.collections:
+                try:
+                    coll.remove()
+                except:
+                    pass
+        self.clustercontour = {}
+
+    def toggle(self, event):
+        x = int(round(event.xdata))
+        y = int(round(event.ydata))
+        clid = self.o2plot.isinc[y,x]
+        if clid not in self.clustercontour.keys():
+            self.clustercontour[clid]=plt.contour(self.o2plot.isinc==clid, [1], colors =['yellow'], linewidths=1)
+        else:
+            for coll in self.clustercontour[clid].collections:
+                coll.remove()
+            del self.clustercontour[clid]
+
+
 
 
 
