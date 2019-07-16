@@ -61,6 +61,8 @@ class interactiveo2plot:
         alt+c : toggle boundary contour of cluster under cursor
         alt+C : remove all boundary contours from plot
 
+        alt+1 : toggle the bond orientations layer
+
         alt+q : toggle a quiver plot of the spins
 
         alt+d : toggle vorticity changes du to last cluster flip (a bit experimental)
@@ -115,6 +117,7 @@ class interactiveo2plot:
         self.layers = {'alt+v':VortexLayer(self),
                        'alt+q':QuiverLayer(self),
                        'alt+b':BoundaryLayer(self),
+                       'alt+1':BondOrientationsLayer(self),
                        'alt+c':BoundaryContourLayer(self),
                        'alt+d':VortexChangeLayer(self)}
 
@@ -317,18 +320,83 @@ class BoundaryContourLayer:
         self.clustercontour = {}
 
     def toggle(self, event):
+        sx,sy = self.o2plot.isinc.shape
         x = int(round(event.xdata))
         y = int(round(event.ydata))
         clid = self.o2plot.isinc[y,x]
         if clid not in self.clustercontour.keys():
-            self.clustercontour[clid]=plt.contour(self.o2plot.isinc==clid, [1], colors =['yellow'], linewidths=1)
+            isincbig = np.repeat(np.repeat(self.o2plot.isinc, 20, axis=0), 20 , axis =1)
+            self.clustercontour[clid]=plt.contour(isincbig==clid, [1],
+                                                  colors =['yellow'], linewidths=1,
+                                                  extent=[-0.5, sx-0.5, -0.5,sy-0.5])
         else:
             for coll in self.clustercontour[clid].collections:
                 coll.remove()
             del self.clustercontour[clid]
 
 
+class BondOrientationsLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active = False
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C3+')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C4_')
 
+    @staticmethod
+    def bdry_int_sig(v1,v2,wn):
+        if v1.dot(wn) < v2.dot(wn):
+            return np.sign(np.linalg.det([v1,wn])) 
+        else:
+            return np.sign(np.linalg.det([v2,wn]))
+
+    def update_data(self):
+        sx,sy = self.o2plot.isinc.shape
+        bdry_int_sig_vec = np.vectorize(self.bdry_int_sig, signature='(2),(2),(2)->()')
+        refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
+
+        orientationsh = bdry_int_sig_vec(refconf, np.roll(refconf, -1, axis=0),self.o2plot.wn)
+        orientationsv = bdry_int_sig_vec(refconf, np.roll(refconf, -1, axis=1),self.o2plot.wn)
+
+        xs2plot=np.append( np.where(orientationsh==1.)[0] + 0.5,
+                           np.where(orientationsv==1.)[0] )
+        ys2plot=np.append( np.where(orientationsh==1.)[1] ,
+                           np.where(orientationsv==1.)[1] + 0.5)
+        #xs,ys = np.meshgrid(range(sx),range(sy))
+        #xs2plot = np.append( xs[orientationsh==1].ravel()+0.5,
+        #                     xs[orientationsv==1].ravel() )
+        #ys2plot = np.append( ys[orientationsh==1].ravel(),
+        #                     ys[orientationsv==1].ravel()+0.5 )
+
+        self.bondsplot_p[0].set_data(ys2plot,xs2plot)
+
+        #xs2plot = np.append( xs[orientationsh==-1].ravel()+0.5,
+        #                     xs[orientationsv==-1].ravel() )
+        #ys2plot = np.append( ys[orientationsh==-1].ravel(),
+        #                     ys[orientationsv==-1].ravel()+0.5 )
+
+        xs2plot=np.append( np.where(orientationsh==-1)[0] + 0.5,
+                           np.where(orientationsv==-1)[0] )
+        ys2plot=np.append( np.where(orientationsh==-1)[1] ,
+                           np.where(orientationsv==-1)[1] + 0.5)
+
+        self.bondsplot_m[0].set_data(ys2plot,xs2plot )
+
+
+    def hide(self):
+            self.bondsplot_m[0].set_data([],[])
+            self.bondsplot_p[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
 
 
 ###########################################################################################
