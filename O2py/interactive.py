@@ -62,6 +62,7 @@ class interactiveo2plot:
         alt+C : remove all boundary contours from plot
 
         alt+1 : toggle the bond orientations layer
+        alt+2 : toggle all cluster boundaries
 
         alt+q : toggle a quiver plot of the spins
 
@@ -114,11 +115,12 @@ class interactiveo2plot:
         self.clplot = ax.imshow(self.clo, cmap = 'coolwarm')
 
 
-        self.layers = {'alt+v':VortexLayer(self),
-                       'alt+q':QuiverLayer(self),
+        self.layers = {'alt+q':QuiverLayer(self),
                        'alt+b':BoundaryLayer(self),
                        'alt+1':BondOrientationsLayer(self),
+                       'alt+2':AllBoundariesLayer(self),
                        'alt+c':BoundaryContourLayer(self),
+                       'alt+v':VortexLayer(self),
                        'alt+d':VortexChangeLayer(self)}
 
 
@@ -361,19 +363,7 @@ class BondOrientationsLayer:
                            np.where(orientationsv==1.)[0] )
         ys2plot=np.append( np.where(orientationsh==1.)[1] ,
                            np.where(orientationsv==1.)[1] + 0.5)
-        #xs,ys = np.meshgrid(range(sx),range(sy))
-        #xs2plot = np.append( xs[orientationsh==1].ravel()+0.5,
-        #                     xs[orientationsv==1].ravel() )
-        #ys2plot = np.append( ys[orientationsh==1].ravel(),
-        #                     ys[orientationsv==1].ravel()+0.5 )
-
         self.bondsplot_p[0].set_data(ys2plot,xs2plot)
-
-        #xs2plot = np.append( xs[orientationsh==-1].ravel()+0.5,
-        #                     xs[orientationsv==-1].ravel() )
-        #ys2plot = np.append( ys[orientationsh==-1].ravel(),
-        #                     ys[orientationsv==-1].ravel()+0.5 )
-
         xs2plot=np.append( np.where(orientationsh==-1)[0] + 0.5,
                            np.where(orientationsv==-1)[0] )
         ys2plot=np.append( np.where(orientationsh==-1)[1] ,
@@ -400,6 +390,70 @@ class BondOrientationsLayer:
 
 
 ###########################################################################################
+class AllBoundariesLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active = False
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C3+')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C4_')
+
+    @staticmethod
+    def shiftinalldirs(array):
+        return [np.roll(array, -1 ,axis = 0),
+                np.roll(array, 1, axis =0),
+                np.roll(array, -1 ,axis = 1),
+                np.roll(array, 1, axis =1)]
+
+
+    @staticmethod
+    def bdry_int_sig(v1,v2,wn):
+        if v1.dot(wn) < v2.dot(wn):
+            return np.sign(np.linalg.det([v1,wn])) 
+        else:
+            return np.sign(np.linalg.det([v2,wn]))
+
+    def update_data(self):
+        sx,sy = self.o2plot.isinc.shape
+        bdry_int_sig_vec = np.vectorize(self.bdry_int_sig, signature='(2),(2),(2)->()')
+        refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
+        allorientations = [bdry_int_sig_vec(refconf, refconfshifted,self.o2plot.wn)
+                               for refconfshifted in self.shiftinalldirs(refconf)]
+        clbdrybools = [(self.o2plot.isinc != shiftedisinc )
+                           for shiftedisinc in self.shiftinalldirs(self.o2plot.isinc) ]
+        x2plot = []
+        y2plot = []
+        os2plot= []
+
+        for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,
+                                                               [0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
+            x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
+            y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
+            os2plot= np.append(os2plot, orientations[bdrybool])
+
+            #coordinates have to be exchanged due to the funny coordinate system of imshow
+        self.bondsplot_p[0].set_data(y2plot[os2plot==1], x2plot[os2plot==1] )
+        self.bondsplot_m[0].set_data(y2plot[os2plot==-1], x2plot[os2plot==-1] )
+
+
+    def hide(self):
+            self.bondsplot_m[0].set_data([],[])
+            self.bondsplot_p[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
+
+
+###########################################################################################
+
 class BoundaryLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
@@ -427,10 +481,13 @@ class BoundaryLayer:
         x = int(round(event.xdata))
         y = int(round(event.ydata))
         clid = self.o2plot.isinc[y,x]
+
         if clid not in self.boundaryplots_p.keys():
             refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
             allorientations = [bdry_int_sig_vec(refconf, refconfshifted,self.o2plot.wn)
                                for refconfshifted in self.shiftinalldirs(refconf)]
+
+
             clbdrybools = [(self.o2plot.isinc ==clid) & (shiftedisinc != clid)
                            for shiftedisinc in self.shiftinalldirs(self.o2plot.isinc) ]
             x2plot = []
