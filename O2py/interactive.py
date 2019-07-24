@@ -64,6 +64,7 @@ class interactiveo2plot:
 
         alt+1 : toggle the bond orientations layer
         alt+2 : toggle all cluster boundaries
+        alt+3 : toggle the half vortex layer 
 
         alt+q : toggle a quiver plot of the spins
 
