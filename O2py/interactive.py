@@ -14,8 +14,9 @@ from matplotlib import cm
 import matplotlib.pyplot as plt
 import O2py.wolffcompiled as pw
 import O2py.vortices as o2v
+from O2py.halfvortices import get_halfvortex_locations
 
-MARKERSIZE = 5
+MARKERSIZE = 10
 
 class interactiveo2plot:
     """A class for the interactive visualization of the 2d O(2) model.
@@ -119,6 +120,7 @@ class interactiveo2plot:
                        'alt+b':BoundaryLayer(self),
                        'alt+1':BondOrientationsLayer(self),
                        'alt+2':AllBoundariesLayer(self),
+                       'alt+3':HalfVortexLayer(self),
                        'alt+c':BoundaryContourLayer(self),
                        'alt+v':VortexLayer(self),
                        'alt+d':VortexChangeLayer(self)}
@@ -336,24 +338,56 @@ class BoundaryContourLayer:
                 coll.remove()
             del self.clustercontour[clid]
 
+###########################################################################################
+class HalfVortexLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active = False
+        self.hvplot = self.o2plot.axis.plot([],[], 'C7x')
+        self.hvpplot = self.o2plot.axis.plot([],[], 'C8^')
+        self.hvmplot = self.o2plot.axis.plot([],[], 'C9v')
 
+    def update_data(self):
+        hvloc, hvploc, hvmloc = get_halfvortex_locations(self.o2plot.dofs, self.o2plot.wn, self.o2plot.isinc)
+        self.hvplot[0].set_data(hvloc[:,1],hvloc[:,0])
+        self.hvpplot[0].set_data(hvploc[:,1],hvploc[:,0])
+        self.hvmplot[0].set_data(hvmloc[:,1],hvmloc[:,0])
+
+            
+
+
+    def hide(self):
+        self.hvplot[0].set_data([],[])
+        self.hvpplot[0].set_data([],[])
+        self.hvmplot[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+ 
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
+
+       
+
+
+
+
+###########################################################################################
 class BondOrientationsLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
-        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C3+')
-        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C4_')
-
-    @staticmethod
-    def bdry_int_sig(v1,v2,wn):
-        if v1.dot(wn) < v2.dot(wn):
-            return np.sign(np.linalg.det([v1,wn])) 
-        else:
-            return np.sign(np.linalg.det([v2,wn]))
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C1_')
 
     def update_data(self):
         sx,sy = self.o2plot.isinc.shape
-        bdry_int_sig_vec = np.vectorize(self.bdry_int_sig, signature='(2),(2),(2)->()')
         refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
 
         orientationsh = bdry_int_sig_vec(refconf, np.roll(refconf, -1, axis=0),self.o2plot.wn)
@@ -394,32 +428,16 @@ class AllBoundariesLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
-        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C3+')
-        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C4_')
-
-    @staticmethod
-    def shiftinalldirs(array):
-        return [np.roll(array, -1 ,axis = 0),
-                np.roll(array, 1, axis =0),
-                np.roll(array, -1 ,axis = 1),
-                np.roll(array, 1, axis =1)]
-
-
-    @staticmethod
-    def bdry_int_sig(v1,v2,wn):
-        if v1.dot(wn) < v2.dot(wn):
-            return np.sign(np.linalg.det([v1,wn])) 
-        else:
-            return np.sign(np.linalg.det([v2,wn]))
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C1_')
 
     def update_data(self):
         sx,sy = self.o2plot.isinc.shape
-        bdry_int_sig_vec = np.vectorize(self.bdry_int_sig, signature='(2),(2),(2)->()')
         refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
         allorientations = [bdry_int_sig_vec(refconf, refconfshifted,self.o2plot.wn)
-                               for refconfshifted in self.shiftinalldirs(refconf)]
+                               for refconfshifted in shiftinalldirs(refconf)]
         clbdrybools = [(self.o2plot.isinc != shiftedisinc )
-                           for shiftedisinc in self.shiftinalldirs(self.o2plot.isinc) ]
+                           for shiftedisinc in shiftinalldirs(self.o2plot.isinc) ]
         x2plot = []
         y2plot = []
         os2plot= []
@@ -460,23 +478,11 @@ class BoundaryLayer:
         self.boundaryplots_p={}
         self.boundaryplots_m={}
 
-    @staticmethod
-    def shiftinalldirs(array):
-        return [np.roll(array, -1 ,axis = 0),
-                np.roll(array, 1, axis =0),
-                np.roll(array, -1 ,axis = 1),
-                np.roll(array, 1, axis =1)]
-
-    @staticmethod
-    def bdry_int_sig(v1,v2,wn):
-        return np.sign(np.linalg.det([v1,wn])) if v1.dot(wn) < v2.dot(wn) else np.sign(np.linalg.det([v2,wn]))
-
     def update_plot(self):
         return
 
     def toggle(self, event):
 
-        bdry_int_sig_vec = np.vectorize(self.bdry_int_sig, signature='(2),(2),(2)->()')
 
         x = int(round(event.xdata))
         y = int(round(event.ydata))
@@ -485,23 +491,23 @@ class BoundaryLayer:
         if clid not in self.boundaryplots_p.keys():
             refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
             allorientations = [bdry_int_sig_vec(refconf, refconfshifted,self.o2plot.wn)
-                               for refconfshifted in self.shiftinalldirs(refconf)]
+                               for refconfshifted in shiftinalldirs(refconf)]
 
 
             clbdrybools = [(self.o2plot.isinc ==clid) & (shiftedisinc != clid)
-                           for shiftedisinc in self.shiftinalldirs(self.o2plot.isinc) ]
+                           for shiftedisinc in shiftinalldirs(self.o2plot.isinc) ]
             x2plot = []
             y2plot = []
             os2plot= []
 
             for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,
-                                                               [0.4,-0.4,0.,0.],[0.,0.,0.4,-0.4]):
+                                                               [0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
                 x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
                 y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
                 os2plot= np.append(os2plot, orientations[bdrybool])
 
             #coordinates have to be exchanged due to the funny coordinate system of imshow
-            self.boundaryplots_p[clid] = self.o2plot.axis.plot(y2plot[os2plot==1], x2plot[os2plot==1], 'C0+' )
+            self.boundaryplots_p[clid] = self.o2plot.axis.plot(y2plot[os2plot==1], x2plot[os2plot==1], 'C4+' )
             self.boundaryplots_m[clid] = self.o2plot.axis.plot(y2plot[os2plot==-1],x2plot[os2plot==-1], 'C1_' )
 
         else:
@@ -523,8 +529,8 @@ class VortexChangeLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active =False
-        self.pvs = self.o2plot.axis.plot([0],[0],'^C4', markersize=MARKERSIZE)
-        self.pavs = self.o2plot.axis.plot([1],[1],'vC6', markersize=MARKERSIZE )
+        self.pvs = self.o2plot.axis.plot([],[],'^C4', markersize=MARKERSIZE)
+        self.pavs = self.o2plot.axis.plot([],[],'vC6', markersize=MARKERSIZE )
 
     def update_data(self):
         sx,sy= self.o2plot.pv.shape[0:2]
@@ -560,9 +566,9 @@ class VortexLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active =False
-        self.pvs = self.o2plot.axis.plot([0],[0],'^C5', markersize=MARKERSIZE, label='Vortices')
-        self.pavs=self.o2plot.axis.plot([1],[1],'vC8', markersize=MARKERSIZE, label='Anti Vortices')
-        self.pfreevs = self.o2plot.axis.plot([1],[1],'oC2',markersize=MARKERSIZE , fillstyle='none', label = 'Free Vortices')
+        self.pvs = self.o2plot.axis.plot([],[],'^C5', markersize=MARKERSIZE, label='Vortices')
+        self.pavs=self.o2plot.axis.plot([],[],'vC8', markersize=MARKERSIZE, label='Anti Vortices')
+        self.pfreevs = self.o2plot.axis.plot([],[],'oC2',markersize=MARKERSIZE , fillstyle='none', label = 'Free Vortices')
         plt.legend(bbox_to_anchor=(1.04,1), loc="upper left")
 
     def hide(self):
@@ -662,3 +668,19 @@ def get_clo(dofs, isinc, wn):
 
 
 
+
+def shiftinalldirs(array):
+    """returns a list of array shifted by +-1 in x an d y"""
+    return [np.roll(array, -1 ,axis = 0),
+                np.roll(array, 1, axis =0),
+                np.roll(array, -1 ,axis = 1),
+                np.roll(array, 1, axis =1)]
+
+def bdry_int_sig(v1,v2,wn):
+    """Returns the boundary interpolation signature between v1 and v2, wn is the wolff normal"""
+    return np.sign(np.linalg.det([wn,v1])) if v1.dot(wn)**2 < v2.dot(wn)**2 else np.sign(np.linalg.det([wn,v2]))
+
+
+
+
+bdry_int_sig_vec = np.vectorize(bdry_int_sig, signature='(2),(2),(2)->()')
