@@ -113,7 +113,7 @@ class interactiveo2plot:
 
 
         self.set_title()
-        self.clplot = ax.imshow(self.clo, cmap = 'coolwarm')
+        self.clplot = ax.imshow(self.clo.transpose(), cmap = 'coolwarm', origin ='lower')
 
 
         self.layers = {'alt+q':QuiverLayer(self),
@@ -151,7 +151,7 @@ class interactiveo2plot:
             self.background='alt+s'
             return
 
-        self.clplot.set_array(licimage)
+        self.clplot.set_array(licimage.transpose())
         self.clplot.set_clim(0,1)
         self.clplot.set_cmap('Blues')
 
@@ -161,7 +161,7 @@ class interactiveo2plot:
         phiwn = np.arctan2(self.wn[0], self.wn[1])
         phis = -np.mod(phiwn-phis+np.pi/2, 2*np.pi)+np.pi
 
-        self.clplot.set_array(phis)
+        self.clplot.set_array(phis.transpose())
         self.clplot.set_clim(-np.pi,np.pi)
         self.clplot.set_cmap('twilight')
 
@@ -169,12 +169,12 @@ class interactiveo2plot:
         """Set the background to a qualitative cluster visualization"""
         clcmap = cluster_random_cmap(self.isinc, mode='largecolored1')
         self.clplot.set_clim(0,np.max(self.isinc))
-        self.clplot.set_array(self.isinc)
+        self.clplot.set_array(self.isinc.transpose())
         self.clplot.set_cmap(clcmap)
 
     def update_cloplot(self):
         """Set the background to the mean cluster orientation with respect to the wolff normal"""
-        self.clplot.set_array(self.clo)
+        self.clplot.set_array(self.clo.transpose())
         self.clplot.set_clim(-1.,1.)
         self.clplot.set_cmap('coolwarm')
      
@@ -225,8 +225,8 @@ class interactiveo2plot:
 
     def onclick(self, event):
         if event.button ==3:
-            x = int(round(event.xdata))
-            y = int(round(event.ydata))
+            x = int(round(event.ydata))
+            y = int(round(event.xdata))
             self.flip_cluster_at(x,y)
             self.update_background()
             self.update_layers()
@@ -285,13 +285,16 @@ class QuiverLayer:
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
-        self.handle = self.o2plot.axis.quiver(self.o2plot.dofs[:,:,0], self.o2plot.dofs[:,:,1], alpha = 0, scale_units='xy')
+        self.handle = self.o2plot.axis.quiver(self.o2plot.dofs[:,:,0].transpose(),
+                                              self.o2plot.dofs[:,:,1].transpose(),
+                                              alpha = 0, scale_units='xy')
     def hide(self):
         self.handle.set_alpha(0)
 
     def update_data(self):
         self.handle.set_alpha(1.)
-        self.handle.set_UVC(self.o2plot.dofs[:,:,0], self.o2plot.dofs[:,:,1])
+        self.handle.set_UVC(self.o2plot.dofs[:,:,0].transpose(),
+                            self.o2plot.dofs[:,:,1].transpose())
 
     def update_plot(self):
         if self.active == True:
@@ -325,12 +328,12 @@ class BoundaryContourLayer:
 
     def toggle(self, event):
         sx,sy = self.o2plot.isinc.shape
-        x = int(round(event.xdata))
-        y = int(round(event.ydata))
+        x = int(round(event.ydata))
+        y = int(round(event.xdata))
         clid = self.o2plot.isinc[y,x]
         if clid not in self.clustercontour.keys():
             isincbig = np.repeat(np.repeat(self.o2plot.isinc, 20, axis=0), 20 , axis =1)
-            self.clustercontour[clid]=plt.contour(isincbig==clid, [1],
+            self.clustercontour[clid]=plt.contour(isincbig.transpose()==clid, [1],
                                                   colors =['yellow'], linewidths=1,
                                                   extent=[-0.5, sx-0.5, -0.5,sy-0.5])
         else:
@@ -346,12 +349,14 @@ class HalfVortexLayer:
         self.hvplot = self.o2plot.axis.plot([],[], 'C7x')
         self.hvpplot = self.o2plot.axis.plot([],[], 'C8^')
         self.hvmplot = self.o2plot.axis.plot([],[], 'C9v')
+        self.textbox = self.o2plot.axis.text(0.05, 0.95, '',  transform=self.o2plot.axis.transAxes)
 
     def update_data(self):
         hvloc, hvploc, hvmloc = get_halfvortex_locations(self.o2plot.dofs, self.o2plot.wn, self.o2plot.isinc)
-        self.hvplot[0].set_data(hvloc[:,1],hvloc[:,0])
-        self.hvpplot[0].set_data(hvploc[:,1],hvploc[:,0])
-        self.hvmplot[0].set_data(hvmloc[:,1],hvmloc[:,0])
+        self.hvplot[0].set_data(hvloc[:,0],hvloc[:,1])
+        self.hvpplot[0].set_data(hvploc[:,0],hvploc[:,1])
+        self.hvmplot[0].set_data(hvmloc[:,0],hvmloc[:,1])
+        self.textbox.set_text('# half vortices  = {}'.format(hvloc.shape[0]))
 
             
 
@@ -397,13 +402,13 @@ class BondOrientationsLayer:
                            np.where(orientationsv==1.)[0] )
         ys2plot=np.append( np.where(orientationsh==1.)[1] ,
                            np.where(orientationsv==1.)[1] + 0.5)
-        self.bondsplot_p[0].set_data(ys2plot,xs2plot)
+        self.bondsplot_p[0].set_data(xs2plot,ys2plot)
         xs2plot=np.append( np.where(orientationsh==-1)[0] + 0.5,
                            np.where(orientationsv==-1)[0] )
         ys2plot=np.append( np.where(orientationsh==-1)[1] ,
                            np.where(orientationsv==-1)[1] + 0.5)
 
-        self.bondsplot_m[0].set_data(ys2plot,xs2plot )
+        self.bondsplot_m[0].set_data(xs2plot,ys2plot )
 
 
     def hide(self):
@@ -449,8 +454,8 @@ class AllBoundariesLayer:
             os2plot= np.append(os2plot, orientations[bdrybool])
 
             #coordinates have to be exchanged due to the funny coordinate system of imshow
-        self.bondsplot_p[0].set_data(y2plot[os2plot==1], x2plot[os2plot==1] )
-        self.bondsplot_m[0].set_data(y2plot[os2plot==-1], x2plot[os2plot==-1] )
+        self.bondsplot_p[0].set_data(x2plot[os2plot==1], y2plot[os2plot==1] )
+        self.bondsplot_m[0].set_data(x2plot[os2plot==-1], y2plot[os2plot==-1] )
 
 
     def hide(self):
@@ -484,8 +489,8 @@ class BoundaryLayer:
     def toggle(self, event):
 
 
-        x = int(round(event.xdata))
-        y = int(round(event.ydata))
+        x = int(round(event.ydata))
+        y = int(round(event.xdata))
         clid = self.o2plot.isinc[y,x]
 
         if clid not in self.boundaryplots_p.keys():
@@ -507,8 +512,8 @@ class BoundaryLayer:
                 os2plot= np.append(os2plot, orientations[bdrybool])
 
             #coordinates have to be exchanged due to the funny coordinate system of imshow
-            self.boundaryplots_p[clid] = self.o2plot.axis.plot(y2plot[os2plot==1], x2plot[os2plot==1], 'C4+' )
-            self.boundaryplots_m[clid] = self.o2plot.axis.plot(y2plot[os2plot==-1],x2plot[os2plot==-1], 'C1_' )
+            self.boundaryplots_p[clid] = self.o2plot.axis.plot(x2plot[os2plot==1], y2plot[os2plot==1], 'C4+' )
+            self.boundaryplots_m[clid] = self.o2plot.axis.plot(x2plot[os2plot==-1],y2plot[os2plot==-1], 'C1_' )
 
         else:
             self.boundaryplots_m[clid][0].remove()
@@ -540,8 +545,8 @@ class VortexChangeLayer:
         avlocx=x[np.where((self.o2plot.pv-self.o2plot.pvprev) ==-1)]
         avlocy=y[np.where((self.o2plot.pv-self.o2plot.pvprev) ==-1)]
 
-        self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
-        self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
+        self.pvs[0].set_data(vlocy-0.5, vlocx-0.5)
+        self.pavs[0].set_data(avlocy-0.5, avlocx-0.5)
 
 
     def update_plot(self):
@@ -584,12 +589,12 @@ class VortexLayer:
         avlocx=x[np.where(self.o2plot.pv==-1)]
         avlocy=y[np.where(self.o2plot.pv==-1)]
 
-        self.pvs[0].set_data(vlocx-0.5, vlocy-0.5)
-        self.pavs[0].set_data(avlocx-0.5, avlocy-0.5)
+        self.pvs[0].set_data(vlocy-0.5, vlocx-0.5)
+        self.pavs[0].set_data(avlocy-0.5, avlocx-0.5)
 
         if len(self.o2plot.freevs)>0:
-            freex = np.array(self.o2plot.freevs)[:,1]
-            freey = np.array(self.o2plot.freevs)[:,0]
+            freex = np.array(self.o2plot.freevs)[:,0]
+            freey = np.array(self.o2plot.freevs)[:,1]
             self.pfreevs[0].set_data(freex-0.5, freey-0.5)
         else:
             self.pfreevs[0].set_data([],[])
