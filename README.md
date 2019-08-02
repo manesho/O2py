@@ -13,6 +13,9 @@ If you want to enable the line integral convolution visualization:
 $ pip install git+https://github.com/manesho/O2py.git#egg=O2py[lic]
 ```
 
+The half vortex graph visualization depends on [graph-tool](https://graph-tool.skewed.de/)
+which is based on the [Boost Graph Library](https://www.boost.org/doc/libs/1_70_0/libs/graph/doc/index.html) and therefore cannot be installed via pip. To enable the half vortex graph visualization, you have to [install graph-tool](https://git.skewed.de/count0/graph-tool/wikis/installation-instructions) seperately.
+
 ## Usage 
 For a simple visualization, run the command line script:
 
