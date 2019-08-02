@@ -56,3 +56,32 @@ def get_halfvortex_locations(dofs, wn, isinc):
     return np.array(hvloc), np.array(hvploc), np.array(hvmloc)
 
 
+def get_halfvortex_clusters(dofs, wn, isinc):
+    sx,sy = dofs.shape[:2]
+    hvcls=[]
+    ahvcls=[]
+    
+    for x in range(sx):
+        for y in range(sy):
+            psig=np.array(get_plaqsig_at(dofs, wn ,x,y))
+            sites =[(x,y) , ((x+1)%sx, y), ((x+1)%sx, (y+1)%sy), (x, (y+1)%sy)]
+            j=0;
+            psigprev = psig[3]
+            vorts = np.zeros(4)
+            for i in range(4):
+                psigcurrent = psig[i]
+                if psigprev == 1 and psigcurrent ==-1:
+                    vorts[i]=-0.5
+                    sitem = sites[i]
+                if psigprev == -1 and psigcurrent ==1:
+                    vorts[i]=0.5
+                    sitep=sites[i]
+
+                psigprev = psigcurrent
+            if 0.5 in vorts and isinc[sitep] != isinc[sitem]:
+                hvcls.append(isinc[sitep])
+                ahvcls.append(isinc[sitem])
+
+    return np.array(hvcls), np.array(ahvcls)
+
+

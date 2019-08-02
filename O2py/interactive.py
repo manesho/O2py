@@ -14,6 +14,7 @@ from matplotlib import cm
 import matplotlib.pyplot as plt
 import O2py.wolffcompiled as pw
 import O2py.vortices as o2v
+import O2py.hvgraph as o2hvg
 from O2py.halfvortices import get_halfvortex_locations
 
 MARKERSIZE = 10
@@ -71,6 +72,9 @@ class interactiveo2plot:
         alt+d : toggle vorticity changes du to last cluster flip (a bit experimental)
 
 
+        Special
+        -------
+        alt+g : show the halfvortex graph of the current configuration in a new window - experimental -
 
         Model Controls
         --------------
@@ -108,8 +112,10 @@ class interactiveo2plot:
 
         #self.show_dof_quiver = False
 
+        self.hvgax = plt.figure()
         plt.ion()
         fig, ax = plt.subplots()
+
         self.axis = ax
 
 
@@ -274,8 +280,12 @@ class interactiveo2plot:
             self.set_title()
         if event.key == 'm':
             pw.metropolis_update(self.dofs, self.beta, nsteps = np.prod(self.isinc.shape)*100)
+            self.pv = o2v.plaquettevorticity_vec(self.dofs)
             self.update_background()
             self.update_layers()
+
+        if event.key =='alt+g':
+            o2hvg.show_hvgraph(self.dofs, self.isinc, self.wn)
 
 
 
