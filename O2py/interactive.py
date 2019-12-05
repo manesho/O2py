@@ -112,7 +112,6 @@ class interactiveo2plot:
 
         #self.show_dof_quiver = False
 
-        self.hvgax = plt.figure()
         plt.ion()
         fig, ax = plt.subplots()
 
@@ -128,6 +127,7 @@ class interactiveo2plot:
                        'alt+1':BondOrientationsLayer(self),
                        'alt+2':AllBoundariesLayer(self),
                        'alt+3':HalfVortexLayer(self),
+                       'alt+4':OrientedCoverLayer(self),
                        'alt+c':BoundaryContourLayer(self),
                        'alt+v':VortexLayer(self),
                        'alt+d':VortexChangeLayer(self)}
@@ -390,6 +390,66 @@ class HalfVortexLayer:
             self.update_data()
 
        
+
+        
+#############################################################################################
+class OrientedCoverLayer:
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active = False
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
+        self.bondsplot_0 = self.o2plot.axis.plot([],[], 'C6o')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C1_')
+
+    def update_data(self): 
+
+        ocsh = o2v.orientedcover_vec(self.o2plot.dofs,
+                                     np.roll(self.o2plot.dofs, -1, axis=0),
+                                     self.o2plot.wn)
+        ocsv = o2v.orientedcover_vec(self.o2plot.dofs,
+                                     np.roll(self.o2plot.dofs, -1, axis=1),
+                                     self.o2plot.wn)
+
+        xs2plot=np.append( np.where(orientationsh==1.)[0] + 0.5,
+                           np.where(orientationsv==1.)[0] )
+        ys2plot=np.append( np.where(orientationsh==1.)[1] ,
+                           np.where(orientationsv==1.)[1] + 0.5)
+        self.bondsplot_p[0].set_data(xs2plot,ys2plot)
+
+        xs2plot=np.append( np.where(orientationsh==-1)[0] + 0.5,
+                           np.where(orientationsv==-1)[0] )
+        ys2plot=np.append( np.where(orientationsh==-1)[1] ,
+                           np.where(orientationsv==-1)[1] + 0.5)
+
+        self.bondsplot_m[0].set_data(xs2plot,ys2plot )
+
+        xs2plot=np.append( np.where(orientationsh==0)[0] + 0.5,
+                           np.where(orientationsv==0)[0] )
+        ys2plot=np.append( np.where(orientationsh==0)[1] ,
+                           np.where(orientationsv==0)[1] + 0.5)
+
+        self.bondsplot_0[0].set_data(xs2plot,ys2plot )
+
+
+
+
+    def hide(self):
+            self.bondsplot_m[0].set_data([],[])
+            self.bondsplot_0[0].set_data([],[])
+            self.bondsplot_p[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
+
 
 
 
