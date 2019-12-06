@@ -66,6 +66,8 @@ class interactiveo2plot:
         alt+1 : toggle the bond orientations layer
         alt+2 : toggle all cluster boundaries
         alt+3 : toggle the half vortex layer 
+        alt+4 : toggle the oriented covers of the wolff normal 
+        alt+5 : toggle the winding numbers
 
         alt+q : toggle a quiver plot of the spins
 
@@ -127,7 +129,8 @@ class interactiveo2plot:
                        'alt+1':BondOrientationsLayer(self),
                        'alt+2':AllBoundariesLayer(self),
                        'alt+3':HalfVortexLayer(self),
-                       'alt+4':OrientedCoverLayer(self),
+                       'alt+4':OrientedCoverHLayer(self),
+                       'alt+5':WindingNumbersLayer(self),
                        'alt+c':BoundaryContourLayer(self),
                        'alt+v':VortexLayer(self),
                        'alt+d':VortexChangeLayer(self)}
@@ -293,6 +296,7 @@ class interactiveo2plot:
 
 ###########################################################################################
 class QuiverLayer:
+    descritpion = "Quiver Plot of all spins "
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
@@ -321,6 +325,7 @@ class QuiverLayer:
 
 ###########################################################################################
 class BoundaryContourLayer:
+    descritpion = "Cluster Boundary for cluster under cursor "
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.clustercontour = {}
@@ -354,6 +359,7 @@ class BoundaryContourLayer:
 
 ###########################################################################################
 class HalfVortexLayer:
+    descritpion = "All half vortices(x) and their associated spins(up and down) "
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
@@ -380,7 +386,7 @@ class HalfVortexLayer:
     def update_plot(self):
         if self.active:
             self.update_data()
- 
+
     def toggle(self, event=None):
         if self.active == True:
             self.active = False
@@ -389,46 +395,82 @@ class HalfVortexLayer:
             self.active = True 
             self.update_data()
 
-       
 
-        
 #############################################################################################
-class OrientedCoverLayer:
+class WindingNumbersLayer:
+    descritpion = "List the spin winding numbers of each slice"
+    def __init__(self, o2plot):
+        self.o2plot = o2plot
+        self.active= False
+        self.handles =[self.o2plot.axis.text(self.o2plot.dofs.shape[1]+0.4,ci,'',ha="center", va="center") for ci in range(self.o2plot.dofs.shape[0])]
+
+    def update_data(self):
+        for i, w in enumerate(self.handles):
+            wn =o2v.plaq_vort(self.o2plot.dofs[:,i])
+            w.set_text(int(wn))
+
+    def hide(self):
+        for w in self.handles:
+            w.set_text('')
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
+
+#############################################################################################
+class OrientedCoverHLayer:
+    description = "Oriented coverings of the east or west pole"
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
-        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
-        self.bondsplot_0 = self.o2plot.axis.plot([],[], 'C6o')
-        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C1_')
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C8',marker='3', ls='')
+        #self.bondsplot_0 = self.o2plot.axis.plot([],[], 'C6o ')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C9',marker='4', ls='')
 
     def update_data(self): 
 
+        wn = self.o2plot.wn
+        eastpole = np.array([wn[1], -wn[0]])
         ocsh = o2v.orientedcover_vec(self.o2plot.dofs,
                                      np.roll(self.o2plot.dofs, -1, axis=0),
-                                     self.o2plot.wn)
-        ocsv = o2v.orientedcover_vec(self.o2plot.dofs,
-                                     np.roll(self.o2plot.dofs, -1, axis=1),
-                                     self.o2plot.wn)
+                                     eastpole)
+        #ocsv = o2v.orientedcover_vec(self.o2plot.dofs,
+        #                             np.roll(self.o2plot.dofs, -1, axis=1),
+        #                             self.o2plot.wn)
 
-        xs2plot=np.append( np.where(orientationsh==1.)[0] + 0.5,
-                           np.where(orientationsv==1.)[0] )
-        ys2plot=np.append( np.where(orientationsh==1.)[1] ,
-                           np.where(orientationsv==1.)[1] + 0.5)
+        #xs2plot=np.append( np.where(ocsh==1.)[0] + 0.5,)
+        #                   np.where(ocsv==1.)[0] )
+        #ys2plot=np.append( np.where(ocsh==1.)[1] ,)
+        #                   np.where(ocsv==1.)[1] + 0.5)
+
+        xs2plot = np.where(ocsh==1.)[0] + 0.5
+        ys2plot =  np.where(ocsh==1.)[1] 
         self.bondsplot_p[0].set_data(xs2plot,ys2plot)
 
-        xs2plot=np.append( np.where(orientationsh==-1)[0] + 0.5,
-                           np.where(orientationsv==-1)[0] )
-        ys2plot=np.append( np.where(orientationsh==-1)[1] ,
-                           np.where(orientationsv==-1)[1] + 0.5)
+        #xs2plot=np.append( np.where(ocsh==-1)[0] + 0.5,)
+        #                   np.where(ocsv==-1)[0] )
+        #ys2plot=np.append( np.where(ocsh==-1)[1] ,
+        #                   np.where(ocsv==-1)[1] + 0.5)
 
+        xs2plot = np.where(ocsh==-1.)[0] + 0.5
+        ys2plot =  np.where(ocsh==-1.)[1] 
+ 
         self.bondsplot_m[0].set_data(xs2plot,ys2plot )
 
-        xs2plot=np.append( np.where(orientationsh==0)[0] + 0.5,
-                           np.where(orientationsv==0)[0] )
-        ys2plot=np.append( np.where(orientationsh==0)[1] ,
-                           np.where(orientationsv==0)[1] + 0.5)
+        #xs2plot=np.append( np.where(ocsh==0)[0] + 0.5,
+        #                   np.where(ocsv==0)[0] )
+        #ys2plot=np.append( np.where(ocsh==0)[1] ,
+        #                   np.where(ocsv==0)[1] + 0.5)
 
-        self.bondsplot_0[0].set_data(xs2plot,ys2plot )
+        #self.bondsplot_0[0].set_data(xs2plot,ys2plot )
 
 
 
@@ -456,6 +498,7 @@ class OrientedCoverLayer:
 
 ###########################################################################################
 class BondOrientationsLayer:
+    description = "Orientation of all Links"
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
@@ -501,6 +544,7 @@ class BondOrientationsLayer:
 
 ###########################################################################################
 class AllBoundariesLayer:
+    description = "Orientation of all cluster boundary Links"
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active = False
@@ -549,6 +593,7 @@ class AllBoundariesLayer:
 ###########################################################################################
 
 class BoundaryLayer:
+    description = "Boundary Layer"
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.boundaryplots_p={}
@@ -602,6 +647,7 @@ class BoundaryLayer:
 
 ###########################################################################################
 class VortexChangeLayer:
+    descritption = "Change in Vorticety due to last cluster flip"
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active =False
@@ -639,6 +685,7 @@ class VortexChangeLayer:
 
 ###########################################################################################
 class VortexLayer:
+    descritption = "Vortices"
     def __init__(self, o2plot):
         self.o2plot = o2plot
         self.active =False
