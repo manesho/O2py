@@ -4,10 +4,10 @@
 import numpy as np
 import random
 from numba import njit
-try:
-    from licpy.lic import runlic
-except:
-    print('line integral convolution not installed')
+#try:
+#    from licpy.lic import runlic
+#except:
+#    print('line integral convolution not installed')
 from scipy.interpolate import RectBivariateSpline
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib import cm
@@ -55,24 +55,7 @@ class interactiveo2plot:
 
         Layers
         ------
-        alt+v : toggle vortices
-
-        alt+b : toggle boundary orientaion of cluster under cursor
-        alt+B : remove all boundary orientations from plot
-
-        alt+c : toggle boundary contour of cluster under cursor
-        alt+C : remove all boundary contours from plot
-
-        alt+1 : toggle the bond orientations layer
-        alt+2 : toggle all cluster boundaries
-        alt+3 : toggle the half vortex layer 
-        alt+4 : toggle the oriented covers of the wolff normal 
-        alt+5 : toggle the winding numbers
-
-        alt+q : toggle a quiver plot of the spins
-
-        alt+d : toggle vorticity changes du to last cluster flip (a bit experimental)
-
+        {}
 
         Special
         -------
@@ -94,7 +77,6 @@ class interactiveo2plot:
 
         if dofs  is None:
             dofs = pw.random_dofs(l,l)
-        print(self.manual)
         self.bgplotcmds = {'alt+o':self.update_cloplot, 
                            'alt+i':self.plot_isinc,
                            'alt+s':self.plot_orientation,
@@ -131,10 +113,15 @@ class interactiveo2plot:
                        'alt+3':HalfVortexLayer(self),
                        'alt+4':OrientedCoverHLayer(self),
                        'alt+5':WindingNumbersLayer(self),
+                       'alt+6':CrossingBondOrientaitonsLayer(self),
+                       'alt+7':RectCrossingBondOrientaitonsLayer(self),
+                       'alt+8':CoordinateCrossingLayer(self),
                        'alt+c':BoundaryContourLayer(self),
                        'alt+v':VortexLayer(self),
                        'alt+d':VortexChangeLayer(self)}
-
+        
+        layersdocstr = "\n".join(['\t {} : {}'.format(key, layer.description) for key,layer in self.layers.items()])
+        print(self.manual.format(layersdocstr))
 
         self.clplot.set_clim(-1,1)
         plt.subplots_adjust(right=0.7)
@@ -288,16 +275,19 @@ class interactiveo2plot:
             self.update_layers()
 
         if event.key =='alt+g':
-            o2hvg.show_hvgraph(self.dofs, self.isinc, self.wn)
+            o2hvg.show_hvbdrygraph(self.dofs, self.isinc, self.wn)
+
+        if event.key =='alt+h':
+            o2hvg.show_geometricvbdrygraph(self.dofs, self.isinc, self.wn)
 
 
-
+###########################################################################################
 
 
 ###########################################################################################
 class QuiverLayer:
-    descritpion = "Quiver Plot of all spins "
     def __init__(self, o2plot):
+        self.description = "Quiver Plot of all spins "
         self.o2plot = o2plot
         self.active = False
         self.handle = self.o2plot.axis.quiver(self.o2plot.dofs[:,:,0].transpose(),
@@ -324,9 +314,10 @@ class QuiverLayer:
             self.hide()
 
 ###########################################################################################
+
 class BoundaryContourLayer:
-    descritpion = "Cluster Boundary for cluster under cursor "
     def __init__(self, o2plot):
+        self.description = "Cluster Boundary for cluster under cursor  (alt+C to remove all boundaries)"
         self.o2plot = o2plot
         self.clustercontour = {}
 
@@ -359,8 +350,8 @@ class BoundaryContourLayer:
 
 ###########################################################################################
 class HalfVortexLayer:
-    descritpion = "All half vortices(x) and their associated spins(up and down) "
     def __init__(self, o2plot):
+        self.description = "All half vortices(x) and their associated spins(up and down) "
         self.o2plot = o2plot
         self.active = False
         self.hvplot = self.o2plot.axis.plot([],[], 'C7x')
@@ -398,8 +389,9 @@ class HalfVortexLayer:
 
 #############################################################################################
 class WindingNumbersLayer:
-    descritpion = "List the spin winding numbers of each slice"
+
     def __init__(self, o2plot):
+        self.description = "List the spin winding numbers of each slice"
         self.o2plot = o2plot
         self.active= False
         self.handles =[self.o2plot.axis.text(self.o2plot.dofs.shape[1]+0.4,ci,'',ha="center", va="center") for ci in range(self.o2plot.dofs.shape[0])]
@@ -427,8 +419,8 @@ class WindingNumbersLayer:
 
 #############################################################################################
 class OrientedCoverHLayer:
-    description = "Oriented coverings of the east or west pole"
     def __init__(self, o2plot):
+        self.description = "Oriented coverings of the east or west pole"
         self.o2plot = o2plot
         self.active = False
         self.bondsplot_p = self.o2plot.axis.plot([],[], 'C8',marker='3', ls='')
@@ -492,14 +484,202 @@ class OrientedCoverHLayer:
             self.active = True 
             self.update_data()
 
+##########################################################################################
+class CrossingBondOrientaitonsLayer:
+    def __init__(self, o2plot):
+        self.description = "Orientation of all wolffplane crossing Links"
+        self.o2plot = o2plot
+        self.active = False
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C1_')
+
+    def update_data(self):
+        sx,sy = self.o2plot.isinc.shape
+        refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,self.o2plot.wn )
+        allorientations = [bdry_int_sig_vec(refconf, refconfshifted,self.o2plot.wn)
+                               for refconfshifted in shiftinalldirs(refconf)]
+
+        spinorientations = self.o2plot.dofs.dot(self.o2plot.wn) > 0 
+
+
+        clbdrybools = [(spinorientations != shiftedspinorientations )
+                           for shiftedspinorientations in  shiftinalldirs(spinorientations) ]
+        x2plot = []
+        y2plot = []
+        os2plot= []
+
+        for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,
+                                                               [0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
+            x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
+            y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
+            os2plot= np.append(os2plot, orientations[bdrybool])
+
+            #coordinates have to be exchanged due to the funny coordinate system of imshow
+        self.bondsplot_p[0].set_data(x2plot[os2plot==1], y2plot[os2plot==1] )
+        self.bondsplot_m[0].set_data(x2plot[os2plot==-1], y2plot[os2plot==-1] )
+
+
+    def hide(self):
+            self.bondsplot_m[0].set_data([],[])
+            self.bondsplot_p[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
+
+
+##########################################################################################
+
+class CoordinateCrossingLayer:
+    def __init__(self, o2plot):
+        self.description = "Orientation of all Links where the plane perpendicular to the wolffplane is crossed"
+        self.o2plot = o2plot
+        self.active = False
+        self.bondsplot_xp = self.o2plot.axis.plot([],[], 'C5<')
+        self.bondsplot_xm = self.o2plot.axis.plot([],[], 'C5>')
+        self.bondsplot_yp = self.o2plot.axis.plot([],[], 'C5^')
+        self.bondsplot_ym = self.o2plot.axis.plot([],[], 'C5v')
+
+    def update_data(self):
+        sx,sy = self.o2plot.isinc.shape
+        thiswn = np.array([1,0])
+        refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,thiswn)
+        allorientations = [bdry_int_sig_vec(refconf, refconfshifted,thiswn)
+                               for refconfshifted in shiftinalldirs(refconf)]
+
+        spinorientations = self.o2plot.dofs.dot(thiswn) > 0 
+
+
+        clbdrybools = [(spinorientations != shiftedspinorientations )
+                           for shiftedspinorientations in  shiftinalldirs(spinorientations) ]
+        x2plot = []
+        y2plot = []
+        os2plot= []
+
+        for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,
+                                                               [0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
+            x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
+            y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
+            os2plot= np.append(os2plot, orientations[bdrybool])
+
+            #coordinates have to be exchanged due to the funny coordinate system of imshow
+        self.bondsplot_yp[0].set_data(x2plot[os2plot==1], y2plot[os2plot==1] )
+        self.bondsplot_ym[0].set_data(x2plot[os2plot==-1], y2plot[os2plot==-1] )
+
+        thiswn = np.array([0,1])
+        refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,thiswn)
+        allorientations = [bdry_int_sig_vec(refconf, refconfshifted,thiswn)
+                               for refconfshifted in shiftinalldirs(refconf)]
+
+        spinorientations = self.o2plot.dofs.dot(thiswn) > 0 
+
+
+        clbdrybools = [(spinorientations != shiftedspinorientations )
+                           for shiftedspinorientations in  shiftinalldirs(spinorientations) ]
+        x2plot = []
+        y2plot = []
+        os2plot= []
+
+        for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,
+                                                               [0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
+            x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
+            y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
+            os2plot= np.append(os2plot, orientations[bdrybool])
+
+            #coordinates have to be exchanged due to the funny coordinate system of imshow
+        self.bondsplot_xp[0].set_data(x2plot[os2plot==1], y2plot[os2plot==1] )
+        self.bondsplot_xm[0].set_data(x2plot[os2plot==-1], y2plot[os2plot==-1] )
+
+
+
+    def hide(self):
+            self.bondsplot_xm[0].set_data([],[])
+            self.bondsplot_xp[0].set_data([],[])
+            self.bondsplot_ym[0].set_data([],[])
+            self.bondsplot_yp[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
+
+
+
+
+##########################################################################################
+class RectCrossingBondOrientaitonsLayer:
+    def __init__(self, o2plot):
+        self.description = "Orientation of all Links where the plane perpendicular to the wolffplane is crossed"
+        self.o2plot = o2plot
+        self.active = False
+        self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
+        self.bondsplot_m = self.o2plot.axis.plot([],[], 'C1_')
+
+    def update_data(self):
+        sx,sy = self.o2plot.isinc.shape
+        thiswn = np.array([self.o2plot.wn[1], - self.o2plot.wn[0]])
+        refconf = get_reference_configuration(self.o2plot.dofs, self.o2plot.isinc,thiswn)
+        allorientations = [bdry_int_sig_vec(refconf, refconfshifted,thiswn)
+                               for refconfshifted in shiftinalldirs(refconf)]
+
+        spinorientations = self.o2plot.dofs.dot(thiswn) > 0 
+
+
+        clbdrybools = [(spinorientations != shiftedspinorientations )
+                           for shiftedspinorientations in  shiftinalldirs(spinorientations) ]
+        x2plot = []
+        y2plot = []
+        os2plot= []
+
+        for bdrybool, orientations, xshift, yshift in zip( clbdrybools,allorientations,
+                                                               [0.5,-0.5,0.,0.],[0.,0.,0.5,-0.5]):
+            x2plot = np.append(x2plot,np.where(bdrybool)[0]+xshift)
+            y2plot = np.append(y2plot,np.where(bdrybool)[1]+yshift)
+            os2plot= np.append(os2plot, orientations[bdrybool])
+
+            #coordinates have to be exchanged due to the funny coordinate system of imshow
+        self.bondsplot_p[0].set_data(x2plot[os2plot==1], y2plot[os2plot==1] )
+        self.bondsplot_m[0].set_data(x2plot[os2plot==-1], y2plot[os2plot==-1] )
+
+
+    def hide(self):
+            self.bondsplot_m[0].set_data([],[])
+            self.bondsplot_p[0].set_data([],[])
+
+    def update_plot(self):
+        if self.active:
+            self.update_data()
+
+    def toggle(self, event=None):
+        if self.active == True:
+            self.active = False
+            self.hide()
+        else:
+            self.active = True 
+            self.update_data()
 
 
 
 
 ###########################################################################################
 class BondOrientationsLayer:
-    description = "Orientation of all Links"
     def __init__(self, o2plot):
+        self.description = "Orientation of all Links"
         self.o2plot = o2plot
         self.active = False
         self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
@@ -544,8 +724,8 @@ class BondOrientationsLayer:
 
 ###########################################################################################
 class AllBoundariesLayer:
-    description = "Orientation of all cluster boundary Links"
     def __init__(self, o2plot):
+        self.description = "Orientation of all cluster boundary Links"
         self.o2plot = o2plot
         self.active = False
         self.bondsplot_p = self.o2plot.axis.plot([],[], 'C4+')
@@ -593,8 +773,8 @@ class AllBoundariesLayer:
 ###########################################################################################
 
 class BoundaryLayer:
-    description = "Boundary Layer"
     def __init__(self, o2plot):
+        self.description = "Boundary Layer"
         self.o2plot = o2plot
         self.boundaryplots_p={}
         self.boundaryplots_m={}
@@ -647,8 +827,8 @@ class BoundaryLayer:
 
 ###########################################################################################
 class VortexChangeLayer:
-    descritption = "Change in Vorticety due to last cluster flip"
     def __init__(self, o2plot):
+        self.description = "Change in Vorticety due to last cluster flip"
         self.o2plot = o2plot
         self.active =False
         self.pvs = self.o2plot.axis.plot([],[],'^C4', markersize=MARKERSIZE)
@@ -685,8 +865,8 @@ class VortexChangeLayer:
 
 ###########################################################################################
 class VortexLayer:
-    descritption = "Vortices"
     def __init__(self, o2plot):
+        self.description = "Vortices"
         self.o2plot = o2plot
         self.active =False
         self.pvs = self.o2plot.axis.plot([],[],'^C5', markersize=MARKERSIZE, label='Vortices')

@@ -60,7 +60,7 @@ def get_halfvortex_clusters(dofs, wn, isinc):
     sx,sy = dofs.shape[:2]
     hvcls=[]
     ahvcls=[]
-    
+
     for x in range(sx):
         for y in range(sy):
             psig=np.array(get_plaqsig_at(dofs, wn ,x,y))
@@ -83,5 +83,4 @@ def get_halfvortex_clusters(dofs, wn, isinc):
                 ahvcls.append(isinc[sitem])
 
     return np.array(hvcls), np.array(ahvcls)
-
 
